@@ -12,6 +12,11 @@ public class Client {
  * listening on <port number>.
  */
   public static void main(String[] args) {
+    /*
+     * TODO use JCommander to read commandline options.
+     * Allow user to specify whether they want to generate a public-private key
+     * pair or read in this pair from a file.
+     */
     Socket socket = null;
     if(args.length == 1) {
       int portNumber = Integer.parseInt(args[0]);
@@ -52,7 +57,7 @@ public class Client {
    * @return null if the connection is unsuccessful, otherwise the socket
    * associated with the connected client
    */
-  public static Socket listen(int portNumber) {
+  private static Socket listen(int portNumber) {
     Socket socket = null;
     try {
       ServerSocket serverSocket = new ServerSocket(portNumber);
@@ -72,7 +77,7 @@ public class Client {
    * @return null if the connection is unsuccessful, otherwise the socket
    * associated with the connected client
    */
-  public static Socket connect(String hostName, int portNumber) {
+  private static Socket connect(String hostName, int portNumber) {
     Socket socket = null;
     try {
       socket = new Socket(hostName, portNumber);
