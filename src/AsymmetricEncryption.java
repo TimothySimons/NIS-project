@@ -1,5 +1,8 @@
-import java.security.*;
 import javax.crypto.*;
+import java.io.*;
+import java.security.*;
+
+
 
 public class AsymmetricEncryption {
 
@@ -48,6 +51,13 @@ public class AsymmetricEncryption {
     return plainText;
   }
 
+  public static void loadJKS(String filePath, String alias, String password) throws Exception {
+    KeyStore keyStore = KeyStore.getInstance("JKS");
+    keyStore.load(new FileInputStream(filePath), password.toCharArray());
+    return keyStore;
+
+  }
+
   public static void main(String[] args) {
     try {
       String msg = "whatup fuckers!!!!!";
@@ -62,6 +72,10 @@ public class AsymmetricEncryption {
       byte[] newPlainText = decrypt(cipherText, privateKey);
       String newMsg = new String(newPlainText);
       System.out.println(newMsg);
+
+      loadJKS("keystore.jks", "alice", "password123");
+
+
     } catch (NoSuchAlgorithmException e) {
       System.out.println("Error suckers!");
     } catch (Exception e) {
