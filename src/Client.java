@@ -1,6 +1,8 @@
 import java.io.*;
 import java.net.*;
 import javax.net.ssl.*;
+import java.security.*;
+import java.security.cert.X509Certificate;
 import java.security.cert.Certificate;
 import javax.net.ServerSocketFactory;
 
@@ -27,13 +29,14 @@ public class Client {
       if(args.length == 1) {
         int portNumber = Integer.parseInt(args[0]);
         Socket socket = listen(portNumber);
-        Certificate cert = AsymmetricEncryption.loadCertificate("alice.cer");
+        X509Certificate cert = AsymmetricEncryption.loadCert("../resources/alice/alicekeystore.jks", "alice","alice123");
         sendCert(socket, cert);
       } else if (args.length == 2){
         String hostName = args[0];
         int portNumber = Integer.parseInt(args[1]);
         Socket socket = connect(hostName, portNumber);
-        Certificate cert = receiveCert(socket);
+        X509Certificate cert = receiveCert(socket);
+        AsymmetricEncryption.authenticateCert("../resources/alice/alicekeystore.jks", "alice123", "thecaroot", cert);
         System.out.println(cert);
       } else {
         System.err.println("Usage 1: java Client <port number>");
@@ -66,7 +69,7 @@ public class Client {
 
 
   /**
-   * Attempts to connect to a client.
+   * Attempts to connect to the listening client.
    *
    * @param hostName the name of the remote host
    * @param portNumber the port number on which the remote host is listening
@@ -79,6 +82,12 @@ public class Client {
   }
 
 
+/**
+ * Sends a Certificate object across a network to the remote host.
+ *
+ * @param socket endpoint for the communication to the remote host
+ * @param cert the signed certificate of the local host
+ */
   private static void sendCert(Socket socket, Certificate cert)
   throws SocketException, IOException {
       ObjectOutputStream outputStream = new ObjectOutputStream(socket.getOutputStream());
@@ -86,10 +95,16 @@ public class Client {
   }
 
 
-  private static Certificate receiveCert(Socket socket)
+  /**
+   * Receive a Certificate object from the remote host.
+   *
+   * @param socket endpoint for the communication to the remote host
+   * @return signed certificate of the remote host
+   */
+  private static X509Certificate receiveCert(Socket socket)
   throws SocketException, IOException, ClassNotFoundException {
       ObjectInputStream inStream = new ObjectInputStream(socket.getInputStream());
-      Certificate cert = (Certificate) inStream.readObject();
+      X509Certificate cert = (X509Certificate) inStream.readObject();
       return cert;
   }
 }
