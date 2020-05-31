@@ -4,9 +4,9 @@ import javax.net.ssl.*;
 import java.security.*;
 import java.security.cert.X509Certificate;
 import java.security.cert.Certificate;
+import java.util.Arrays;
 import javax.net.ServerSocketFactory;
 
-// import AsymmetricEncryption;
 
 public class Client {
 
@@ -27,10 +27,22 @@ public class Client {
      */
      try {
       if(args.length == 1) {
-        int portNumber = Integer.parseInt(args[0]);
-        Socket socket = listen(portNumber);
-        X509Certificate cert = AsymmetricEncryption.loadCert("../resources/alice/alicekeystore.jks", "alice","alice123");
-        sendCert(socket, cert);
+
+
+        // int portNumber = Integer.parseInt(args[0]);
+        // Socket socket = listen(portNumber);
+        // X509Certificate cert = AsymmetricEncryption.loadCert("../resources/alice/alicekeystore.jks", "alice","alice123");
+        // sendCert(socket, cert);
+
+        KeyPair keyPair = AsymmetricEncryption.generateRSAKeyPair();
+        PrivateKey privateKey = keyPair.getPrivate();
+        PublicKey publicKey = keyPair.getPublic();
+        byte[] authMsg = AsymmetricEncryption.createAuthMsg(20480, privateKey);
+        AsymmetricEncryption.verifyAuthMsg(authMsg, publicKey);
+
+
+
+
       } else if (args.length == 2){
         String hostName = args[0];
         int portNumber = Integer.parseInt(args[1]);
@@ -108,6 +120,8 @@ public class Client {
       return cert;
   }
 }
+
+
 
 
 
