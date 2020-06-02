@@ -182,3 +182,4 @@ public class AsymmetricEncryption {
       throw new AuthenticationException();
     }
   }
+}
