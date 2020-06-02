@@ -5,7 +5,7 @@ import java.security.cert.*;
 import java.util.*;
 import java.util.zip.*;
 import javax.security.auth.x500.X500Principal;
-import javax.security.auth.x500.X500Principal;
+import javax.security.sasl.AuthenticationException;
 // TODO: spefify all imports (as is best practice)
 
 
@@ -14,6 +14,9 @@ public class AsymmetricEncryption {
 
   /**
   * Generates a RSA public and private key pair.
+  *
+  * This is currently only used for debuging purposes as the public and private
+  * keys are kept in java key stores.
   *
   * @return KeyPair object which is a simple holder for the PublicKey and
   * PrivateKey objects.
@@ -61,16 +64,21 @@ public class AsymmetricEncryption {
 
 
   /**
-  * Constructs a Certificate object from a certificate file.
+  * Loads a KeyStore object for a client.
+  *
+  * A KeyStore consists of a database containing a private key and an associated
+  * certificate, or an associated certificate chain. The certificate chain
+  * consists of the client certificate and one or more certification authority
+  * (CA) certificates.
   *
   * @param JSKFilePath path to a Java Key Store (JKS)
   * @param alias alias of certificate in the JKS
+  * @return key store containing keys and certificates.
   */
-  public static X509Certificate loadCert(String JKSFilePath, String alias, String password) throws Exception {
+  public static KeyStore loadJKS(String JKSFilePath, String alias, String password) throws Exception {
     KeyStore keyStore = KeyStore.getInstance("JKS");
     keyStore.load(new FileInputStream(JKSFilePath), password.toCharArray());
-    X509Certificate cert = (X509Certificate) keyStore.getCertificate(alias);
-    return cert;
+    return keyStore;
   }
 
 
@@ -84,16 +92,23 @@ public class AsymmetricEncryption {
   * @param rootCertAlias alias of the root certificate in the JKS
   * @param cert certificate to be authenticated
   */
-  public static void authenticateCert(String JKSFilePath, String password, String rootCertAlias, X509Certificate cert) throws Exception {
-    KeyStore keyStore = KeyStore.getInstance("JKS");
-    keyStore.load(new FileInputStream(JKSFilePath), password.toCharArray());
+  public static void authenticateCert(KeyStore keyStore, String password, X509Certificate CARootCert, X509Certificate cert)
+  throws Exception
+  {
     cert.checkValidity();
-    X509Certificate rootCert = (X509Certificate) keyStore.getCertificate(rootCertAlias);
-    PublicKey rootCertPublicKey = rootCert.getPublicKey();
-    cert.verify(rootCertPublicKey);
+    PublicKey CARootCertPublicKey = CARootCert.getPublicKey();
+    cert.verify(CARootCertPublicKey);
   }
 
 
+/**
+ * Creates a message to authenticate to the remote client that the local client
+ * owns the private key corresponding to the public key in the sent certificate.
+ *
+ * @param randDataLength the length of the random message to be used in the
+ * authentication message.
+ * @param privateKey private key of the local client to sign the message digest
+ */
   public static byte[] createAuthMsg(int randDataLength, PrivateKey privateKey) throws Exception {
     // random data
     SecureRandom random = new SecureRandom();
@@ -105,7 +120,8 @@ public class AsymmetricEncryption {
     md.update(randomData);
     byte[] digest = md.digest();
     byte[] signedDigest = AsymmetricEncryption.encrypt(digest, privateKey);
-    System.out.println(signedDigest.length);
+    System.out.println("Random data: " + randomData.length);
+    System.out.println("Signed digest: " + signedDigest.length);
 
     // concatenate signed digest with original message
     ByteArrayOutputStream baosConcat = new ByteArrayOutputStream();
@@ -130,7 +146,14 @@ public class AsymmetricEncryption {
     return authMsg;
   }
 
-
+  /**
+   * Verifies that a remote client owns the private key corresponding to a
+   * known public key.
+   *
+   * @param authMsg the message sent by the remote client for authentication
+   * @param privateKey public key of the local client that was taken from the
+   * certificate sent by the client
+   */
   public static void verifyAuthMsg(byte[] authMsg, PublicKey publicKey) throws Exception {
     // decompression
     Inflater decompresser = new Inflater();
@@ -155,46 +178,7 @@ public class AsymmetricEncryption {
     MessageDigest md = MessageDigest.getInstance("SHA-256");
     md.update(randomData);
     byte[] hash = md.digest();
-    if (MessageDigest.isEqual(digest, hash)) {
-      System.out.println("yayyyyy!");
-    } else {
-      System.out.println("Currently not working");
+    if (!MessageDigest.isEqual(digest, hash)) {
+      throw new AuthenticationException();
     }
   }
-
-
-
-
-
-
-
-  //   int resultLength = decompresser.inflate(result);
-  //   decompresser.end();
-
-
-  public static void main(String[] args) {
-    try {
-      //NB: main method for debuging purposes
-      String msg = "message to decrypt";
-      byte[] plainText = msg.getBytes();
-      KeyPair keyPair = generateRSAKeyPair();
-
-      PublicKey publicKey = keyPair.getPublic();
-      byte[] cipherText = encrypt(plainText, publicKey);
-      System.out.println(cipherText);
-
-      PrivateKey privateKey = keyPair.getPrivate();
-      byte[] newPlainText = decrypt(cipherText, privateKey);
-      String newMsg = new String(newPlainText);
-      System.out.println(newMsg);
-
-      X509Certificate bobCert = loadCert("../resources/bob/bobkeystore.jks", "bob", "bob123");
-      authenticateCert("../resources/alice/alicekeystore.jks", "alice123", "thecaroot", bobCert);
-
-    } catch (NoSuchAlgorithmException e) {
-      System.out.println("Error suckers!");
-    } catch (Exception e) {
-      e.printStackTrace();
-    }
-  }
-}
