@@ -9,61 +9,53 @@ import javax.net.ServerSocketFactory;
 
 
 public class Client {
+  private String alias;
+  private String password;
+  private KeyStore keyStore;
+  private PrivateKey privateKey;
+  private PublicKey publicKey;
+  private X509Certificate cert;
+  private X509Certificate CARootCert;
 
-/**
- * Creates a connection with another client and facilitates the communication
- * between them.
- *
- * @param args specifies whether the client should listen for a connection on a
- * specified <port number> or make a connection to a client <host name>
- * listening on <port number>.
- */
-  public static void main(String[] args) {
-    /*
-     * TODO: use JCommander to read commandline options.
-     * Allow user to specify whether they want to generate a public-private key
-     * pair or read in this pair from a file.
-     * TODO: this main function violates so many best practices; need to clean it up.
-     */
-     try {
-      if(args.length == 1) {
-
-
-        // int portNumber = Integer.parseInt(args[0]);
-        // Socket socket = listen(portNumber);
-        // X509Certificate cert = AsymmetricEncryption.loadCert("../resources/alice/alicekeystore.jks", "alice","alice123");
-        // sendCert(socket, cert);
-
-        KeyPair keyPair = AsymmetricEncryption.generateRSAKeyPair();
-        PrivateKey privateKey = keyPair.getPrivate();
-        PublicKey publicKey = keyPair.getPublic();
-        byte[] authMsg = AsymmetricEncryption.createAuthMsg(20480, privateKey);
-        AsymmetricEncryption.verifyAuthMsg(authMsg, publicKey);
+  public Client(String JKSFilePath, String password, String alias, String CARootAlias) throws Exception {
+    this.alias = alias;
+    this.password = password;
+    this.keyStore = AsymmetricEncryption.loadJKS(JKSFilePath, alias, password);
+    this.privateKey = (PrivateKey) keyStore.getKey(alias, password.toCharArray());
+    this.cert = (X509Certificate) keyStore.getCertificate(alias);
+    this.publicKey = cert.getPublicKey();
+    this.CARootCert = (X509Certificate) keyStore.getCertificate(CARootAlias);
+  }
 
 
+  public void listenerClientActions(int portNumber) throws Exception {
+    Socket socket = listen(portNumber);
+
+    sendCert(socket);
+    X509Certificate remoteCert = receiveCert(socket);
+    AsymmetricEncryption.authenticateCert(this.keyStore, this.password, this.CARootCert, remoteCert);
+
+    byte[] authMsgOut = AsymmetricEncryption.createAuthMsg(2048, this.privateKey);
+    sendBytes(socket, authMsgOut);
+    byte[] authMsgIn = receiveBytes(socket);
+    PublicKey remotePublicKey = remoteCert.getPublicKey();
+    AsymmetricEncryption.verifyAuthMsg(authMsgIn, remotePublicKey);
+  }
 
 
-      } else if (args.length == 2){
-        String hostName = args[0];
-        int portNumber = Integer.parseInt(args[1]);
-        Socket socket = connect(hostName, portNumber);
-        X509Certificate cert = receiveCert(socket);
-        AsymmetricEncryption.authenticateCert("../resources/alice/alicekeystore.jks", "alice123", "thecaroot", cert);
-        System.out.println(cert);
-      } else {
-        System.err.println("Usage 1: java Client <port number>");
-        System.err.println("Usage 2: java Client <host name> <port number>");
-        System.exit(1);
-      }
-    } catch (UnknownHostException e) {
-      e.printStackTrace();
-    } catch (SocketException e) {
-      e.printStackTrace();
-    } catch (IOException e) {
-      e.printStackTrace();
-    } catch (Exception e) {
-      e.printStackTrace();
-    }
+  public void connectingClientActions(String hostName, int portNumber) throws Exception {
+    Socket socket = connect(hostName, portNumber);
+
+    X509Certificate remoteCert = receiveCert(socket);
+    AsymmetricEncryption.authenticateCert(this.keyStore, this.password, this.CARootCert, remoteCert);
+    sendCert(socket);
+
+    byte[] authMsgIn = receiveBytes(socket);
+    PublicKey remotePublicKey = remoteCert.getPublicKey();
+    AsymmetricEncryption.verifyAuthMsg(authMsgIn, remotePublicKey);
+    byte[] authMsgOut = AsymmetricEncryption.createAuthMsg(2048, this.privateKey);
+    sendBytes(socket, authMsgOut);
+
   }
 
 
@@ -73,7 +65,7 @@ public class Client {
    * @param portNumber local port number on which to listen for a connection
    * @return socket associated with the connected client
    */
-  private static Socket listen(int portNumber) throws IOException {
+  private Socket listen(int portNumber) throws IOException {
       ServerSocket serverSocket = new ServerSocket(portNumber);
       Socket socket = serverSocket.accept();
       return socket;
@@ -87,7 +79,7 @@ public class Client {
    * @param portNumber the port number on which the remote host is listening
    * @return socket associated with the connected client
    */
-  private static Socket connect(String hostName, int portNumber)
+  private Socket connect(String hostName, int portNumber)
   throws UnknownHostException, IOException {
       Socket socket = new Socket(hostName, portNumber);
       return socket;
@@ -100,10 +92,10 @@ public class Client {
  * @param socket endpoint for the communication to the remote host
  * @param cert the signed certificate of the local host
  */
-  private static void sendCert(Socket socket, Certificate cert)
+  private void sendCert(Socket socket)
   throws SocketException, IOException {
       ObjectOutputStream outputStream = new ObjectOutputStream(socket.getOutputStream());
-      outputStream.writeObject(cert);
+      outputStream.writeObject(this.cert);
   }
 
 
@@ -113,36 +105,28 @@ public class Client {
    * @param socket endpoint for the communication to the remote host
    * @return signed certificate of the remote host
    */
-  private static X509Certificate receiveCert(Socket socket)
+  private X509Certificate receiveCert(Socket socket)
   throws SocketException, IOException, ClassNotFoundException {
       ObjectInputStream inStream = new ObjectInputStream(socket.getInputStream());
-      X509Certificate cert = (X509Certificate) inStream.readObject();
-      return cert;
+      X509Certificate remoteCert = (X509Certificate) inStream.readObject();
+      return remoteCert;
+  }
+
+
+  private void sendBytes(Socket socket, byte[] authMsg)
+  throws SocketException, IOException {
+    DataOutputStream outStream = new DataOutputStream(socket.getOutputStream());
+    outStream.writeInt(authMsg.length);
+    outStream.write(authMsg);
+  }
+
+
+  private byte[] receiveBytes(Socket socket)
+  throws SocketException, IOException, ClassNotFoundException {
+    DataInputStream inStream = new DataInputStream(socket.getInputStream());
+    int length = inStream.readInt();
+    byte[] authMsg = new byte[length];
+    inStream.readFully(authMsg, 0, authMsg.length);
+    return authMsg;
   }
 }
-
-
-
-
-
-
-
-
-
-//TODO: make all methods throw the relevant exceptions and catch those exceptions
-//      in main
-
-
-// try {
-//   PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
-//   BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-//   BufferedReader stdIn = new BufferedReader(new InputStreamReader(System.in));
-//   String userInput;
-//   while ((userInput = stdIn.readLine()) != null) {
-//     out.println(userInput);
-//     System.out.println("remote: " + in.readLine());
-//   }
-// } catch (IOException e) {
-//   String hostName = socket.getInetAddress().getHostName();
-//   System.err.println("Couldn't get I/O for connection to " + hostName);
-// }
