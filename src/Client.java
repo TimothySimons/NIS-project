@@ -1,11 +1,13 @@
 import java.io.*;
 import java.net.*;
-import javax.net.ssl.*;
 import java.security.*;
 import java.security.cert.X509Certificate;
 import java.security.cert.Certificate;
 import java.util.Arrays;
+import javax.crypto.*;
+import javax.crypto.spec.*;
 import javax.net.ServerSocketFactory;
+import javax.net.ssl.*;
 
 
 public class Client {
@@ -40,10 +42,21 @@ public class Client {
     byte[] authMsgIn = receiveBytes(socket);
     PublicKey remotePublicKey = remoteCert.getPublicKey();
     AsymmetricEncryption.verifyAuthMsg(authMsgIn, remotePublicKey);
+
+    SecretKey secretKey = SymmetricEncryption.generateSecretAESKey();
+    byte[] encodedSecretKey = secretKey.getEncoded();
+    byte[] encryptedSecretKey = AsymmetricEncryption.encrypt(encodedSecretKey, remotePublicKey);
+    sendBytes(socket, encryptedSecretKey);
+
+    byte[] ivBytes = receiveBytes(socket);
+    byte[] encryptedSecret = receiveBytes(socket);
+    byte[] secretMsgBytes = SymmetricEncryption.decrypt(encryptedSecret, secretKey, ivBytes);
+    String secretMsg = new String(secretMsgBytes);
+    System.out.println(secretMsg);
   }
 
 
-  public void connectingClientActions(String hostName, int portNumber) throws Exception {
+  public void connectingClientActions(String hostName, int portNumber, String secretMsg) throws Exception {
     Socket socket = connect(hostName, portNumber);
 
     X509Certificate remoteCert = receiveCert(socket);
@@ -56,6 +69,14 @@ public class Client {
     byte[] authMsgOut = AsymmetricEncryption.createAuthMsg(2048, this.privateKey);
     sendBytes(socket, authMsgOut);
 
+    byte[] encryptedSecretKey = receiveBytes(socket);
+    byte[] encodedSecretKey = AsymmetricEncryption.decrypt(encryptedSecretKey, this.privateKey);
+    byte[] ivBytes = SymmetricEncryption.generateIV();
+    SecretKeySpec secretKey = new SecretKeySpec(encodedSecretKey, "AES");
+    byte[] secretMsgBytes = secretMsg.getBytes();
+    byte[] encryptedSecret = SymmetricEncryption.encrypt(secretMsgBytes, secretKey, ivBytes);
+    sendBytes(socket, ivBytes);
+    sendBytes(socket, encryptedSecret);
   }
 
 
@@ -108,8 +129,8 @@ public class Client {
   private X509Certificate receiveCert(Socket socket)
   throws SocketException, IOException, ClassNotFoundException {
       ObjectInputStream inStream = new ObjectInputStream(socket.getInputStream());
-      X509Certificate remoteCert = (X509Certificate) inStream.readObject();
-      return remoteCert;
+      X509Certificate cert = (X509Certificate) inStream.readObject();
+      return cert;
   }
 
 

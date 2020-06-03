@@ -23,6 +23,7 @@ public class ClientMain {
         Client client = new Client(JKSFilePath, password, alias, CARootAlias);
         client.listenerClientActions(portNumber);
       } else if (args.length == 2){
+        String secretMsg = "I love you Alice...";
         String hostName = args[0];
         int portNumber = Integer.parseInt(args[1]);
         String JKSFilePath = "../resources/bob/bobkeystore.jks";
@@ -30,7 +31,7 @@ public class ClientMain {
         String CARootAlias = "thecaroot";
         String password = "bob123";
         Client client = new Client(JKSFilePath, password, alias, CARootAlias);
-        client.connectingClientActions(hostName, portNumber);
+        client.connectingClientActions(hostName, portNumber, secretMsg);
       } else {
         System.err.println("Usage 1: java Client <port number>");
         System.err.println("Usage 2: java Client <host name> <port number>");
