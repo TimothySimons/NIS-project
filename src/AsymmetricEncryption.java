@@ -34,7 +34,7 @@ public class AsymmetricEncryption {
   *
   * @param plainText byte array to be encrypted
   * @param key key object that inherits the Key interface in the java.security
-    * package. Generally the key argument will be of type PublicKey or PrivateKey
+    * package. The key argument will be of type PublicKey or PrivateKey
   * @return byte array that is the encrypted plain text
   */
   public static byte[] encrypt(byte[] plainText, Key key) throws Exception {
@@ -51,7 +51,7 @@ public class AsymmetricEncryption {
   *
   * @param cipherText byte array to be decrypted
   * @param key key object that inherits the Key interface in the java.security
-  * package. Generally the key argument will be of type PublicKey or PrivateKey
+  * package. The key argument will be of type PublicKey or PrivateKey
   * @return byte array that is the decrypted cipher text
   */
   public static byte[] decrypt(byte[] cipherText, Key key) throws Exception {
