@@ -78,8 +78,4 @@ public class SymmetricEncryption extends Encryption {
     byte[] plainText = cipher.doFinal(cipherText);
     return plainText;
   }
-
-  // TODO: Compression of secret msg
-
-
 }

@@ -11,7 +11,7 @@ public class ClientMain {
       if(args.length == 5) {
         Client client = new Client(args[0], args[1], args[2], args[3]);
         int portNumber = Integer.parseInt(args[4]);
-        client.listenerClientActions(portNumber);
+        client.listeningClientActions(portNumber);
       } else if (args.length == 7){
         Client client = new Client(args[0], args[1], args[2], args[3]);
         String hostName = args[4];

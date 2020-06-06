@@ -7,6 +7,7 @@ import java.util.Arrays;
 import javax.crypto.*;
 import javax.crypto.spec.*;
 import javax.net.ServerSocketFactory;
+import javax.security.sasl.AuthenticationException;
 import javax.net.ssl.*;
 
 // TODO: make key message sizes, algorithms etc constant.
@@ -14,6 +15,10 @@ import javax.net.ssl.*;
 // TODO: add testing and debuging
 
 public class Client {
+  private final int randomDataLength = 2048;
+  private final String encryptionSpec = "AES";
+  private static final String hashAlg = "SHA-256";
+  private final int msgDigestLength = 32;
   private String alias;
   private String password;
   private KeyStore keyStore;
@@ -32,54 +37,88 @@ public class Client {
     this.CARootCert = (X509Certificate) keyStore.getCertificate(CARootAlias);
   }
 
-
-  public void listenerClientActions(int portNumber) throws Exception {
+ /**
+  * Encapsulates the communication between two clients from the listening client's
+  * perspective.
+  *
+  */
+  public void listeningClientActions(int portNumber) throws Exception {
+    // connection
     Socket socket = listen(portNumber);
 
+    // certificate verification
     sendCert(socket);
     X509Certificate remoteCert = receiveCert(socket);
     AsymmetricEncryption.authenticateCert(this.keyStore, this.password, this.CARootCert, remoteCert);
 
-    byte[] authMsgOut = AsymmetricEncryption.createAuthMsg(2048, this.privateKey);
+    // client authentication
+    byte[] authMsgOut = AsymmetricEncryption.createAuthMsg(this.randomDataLength, this.privateKey);
     sendBytes(socket, authMsgOut);
     byte[] authMsgIn = receiveBytes(socket);
     PublicKey remotePublicKey = remoteCert.getPublicKey();
     AsymmetricEncryption.verifyAuthMsg(authMsgIn, remotePublicKey);
 
+    // shared-key session
     SecretKey secretKey = SymmetricEncryption.generateSecretKey();
     byte[] encodedSecretKey = secretKey.getEncoded();
     byte[] encryptedSecretKey = AsymmetricEncryption.encrypt(encodedSecretKey, remotePublicKey);
     sendBytes(socket, encryptedSecretKey);
 
+    // encrypted secret message and message digest
     byte[] ivBytes = receiveBytes(socket);
-    byte[] encryptedSecret = receiveBytes(socket);
-    byte[] secretMsgBytes = SymmetricEncryption.decrypt(encryptedSecret, secretKey, ivBytes);
-    String secretMsg = new String(secretMsgBytes);
-    System.out.println(secretMsg);
+    byte[] encryptedBytes = receiveBytes(socket);
+    byte[] concatMsg = SymmetricEncryption.decrypt(encryptedBytes, secretKey, ivBytes);
+    byte[] decryptedHash = Arrays.copyOfRange(concatMsg, 0, this.msgDigestLength);
+    byte[] secretMsgBytes = Arrays.copyOfRange(concatMsg, this.msgDigestLength, concatMsg.length);
+    // String secretMsg = new String(secretMsgBytes);
+    // System.out.println(secretMsg); // TODO
+
+    // secret message integrity
+    byte[] hash = SymmetricEncryption.computeHash(secretMsgBytes, hashAlg);
+    System.out.println("hash length " + hash.length);
+    System.out.println("decrypted hash length " + decryptedHash.length);
+    if (!MessageDigest.isEqual(decryptedHash, hash)) {
+      throw new AuthenticationException();
+    }
   }
 
 
   public void connectingClientActions(String hostName, int portNumber, String secretMsg) throws Exception {
+    // connection
     Socket socket = connect(hostName, portNumber);
 
+    // certificate verification
     X509Certificate remoteCert = receiveCert(socket);
     AsymmetricEncryption.authenticateCert(this.keyStore, this.password, this.CARootCert, remoteCert);
     sendCert(socket);
 
+    // client authentication
     byte[] authMsgIn = receiveBytes(socket);
     PublicKey remotePublicKey = remoteCert.getPublicKey();
     AsymmetricEncryption.verifyAuthMsg(authMsgIn, remotePublicKey);
-    byte[] authMsgOut = AsymmetricEncryption.createAuthMsg(2048, this.privateKey);
+    byte[] authMsgOut = AsymmetricEncryption.createAuthMsg(this.randomDataLength, this.privateKey);
     sendBytes(socket, authMsgOut);
 
+    // shared-key session
     byte[] encryptedSecretKey = receiveBytes(socket);
     byte[] encodedSecretKey = AsymmetricEncryption.decrypt(encryptedSecretKey, this.privateKey);
     byte[] ivBytes = SymmetricEncryption.generateIV();
-    SecretKeySpec secretKey = new SecretKeySpec(encodedSecretKey, "AES");
+    SecretKeySpec secretKey = new SecretKeySpec(encodedSecretKey, this.encryptionSpec);
+
+    // encrypted secret and message digest
     byte[] secretMsgBytes = secretMsg.getBytes();
-    byte[] encryptedSecret = SymmetricEncryption.encrypt(secretMsgBytes, secretKey, ivBytes);
+    byte[] hash = SymmetricEncryption.computeHash(secretMsgBytes, this.hashAlg);
+    System.out.println("hash length " + hash.length);
+    ByteArrayOutputStream baosConcat = new ByteArrayOutputStream();
+    baosConcat.write(hash);
+    baosConcat.write(secretMsgBytes);
+    byte[] concatMsg = baosConcat.toByteArray();
+    // System.out.println("debug " + concatMsg.length);
+
+    byte[] encryptedBytes = SymmetricEncryption.encrypt(concatMsg, secretKey, ivBytes);
+    // System.out.println("debug " + encryptedBytes.length);
     sendBytes(socket, ivBytes);
-    sendBytes(socket, encryptedSecret);
+    sendBytes(socket, encryptedBytes);
   }
 
 

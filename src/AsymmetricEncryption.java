@@ -20,7 +20,8 @@ public class AsymmetricEncryption extends Encryption {
   private static final String algSpec = "RSA/ECB/PKCS1Padding";
   private static final String keyStoreType = "JKS";
   private static final String hashAlg = "SHA-256";
-  private static final int msgDigestLength = 256;
+  private static final int signedDigestLength = 256;
+
 
 
   /**
@@ -128,6 +129,7 @@ public class AsymmetricEncryption extends Encryption {
 
     // hash and sign
     byte[] digest = computeHash(randomData, hashAlg);
+    System.out.println("debug Asym " + digest.length);
     byte[] signedDigest = AsymmetricEncryption.encrypt(digest, privateKey);
     System.out.println("Random data: " + randomData.length);
     System.out.println("Signed digest: " + signedDigest.length);
@@ -160,8 +162,8 @@ public class AsymmetricEncryption extends Encryption {
     System.out.println("Compressed: " + authMsg.length);
 
     // split
-    byte[] signedDigest = Arrays.copyOfRange(concatMsg, 0, msgDigestLength); // TODO: may not be 256 bits
-    byte[] randomData = Arrays.copyOfRange(concatMsg, msgDigestLength, concatMsg.length);
+    byte[] signedDigest = Arrays.copyOfRange(concatMsg, 0, signedDigestLength);
+    byte[] randomData = Arrays.copyOfRange(concatMsg, signedDigestLength, concatMsg.length);
 
     // verify
     byte[] decryptedhash = AsymmetricEncryption.decrypt(signedDigest, publicKey);
