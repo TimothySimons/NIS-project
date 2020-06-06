@@ -46,7 +46,7 @@ public class Client {
     PublicKey remotePublicKey = remoteCert.getPublicKey();
     AsymmetricEncryption.verifyAuthMsg(authMsgIn, remotePublicKey);
 
-    SecretKey secretKey = SymmetricEncryption.generateSecretAESKey();
+    SecretKey secretKey = SymmetricEncryption.generateSecretKey();
     byte[] encodedSecretKey = secretKey.getEncoded();
     byte[] encryptedSecretKey = AsymmetricEncryption.encrypt(encodedSecretKey, remotePublicKey);
     sendBytes(socket, encryptedSecretKey);

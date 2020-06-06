@@ -6,11 +6,22 @@ import java.util.*;
 import java.util.zip.*;
 import javax.security.auth.x500.X500Principal;
 import javax.security.sasl.AuthenticationException;
-// TODO: spefify all imports (as is best practice)
 
+/**
+* The class is a utility class for RSA asymmetric encryption.
+*
+* It contains all the relevant functionality needed for cryptographic privacy and
+* authentication. The process of encryption and authentication is similar to that
+* of PGP.
+*/
+public class AsymmetricEncryption extends Encryption {
+  private static final String encryptionSpec = "RSA";
+  private static final int keyLength = 2048;
+  private static final String algSpec = "RSA/ECB/PKCS1Padding";
+  private static final String keyStoreType = "JKS";
+  private static final String hashAlg = "SHA-256";
+  private static final int msgDigestLength = 256;
 
-
-public class AsymmetricEncryption {
 
   /**
   * Generates a RSA public and private key pair.
@@ -18,12 +29,11 @@ public class AsymmetricEncryption {
   * This is currently only used for debuging purposes as the public and private
   * keys are kept in the clients' java key stores.
   *
-  * @return KeyPair object which is a simple holder for the PublicKey and
-  * PrivateKey objects.
+  * @return KeyPair object which holds the PublicKey and PrivateKey objects
   */
   public static KeyPair generateRSAKeyPair() throws Exception {
-    KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA");
-    keyGen.initialize(2048);
+    KeyPairGenerator keyGen = KeyPairGenerator.getInstance(encryptionSpec);
+    keyGen.initialize(keyLength);
     KeyPair keyPair = keyGen.generateKeyPair();
     return keyPair;
   }
@@ -35,10 +45,10 @@ public class AsymmetricEncryption {
   * @param plainText byte array to be encrypted
   * @param key key object that inherits the Key interface in the java.security
     * package. The key argument will be of type PublicKey or PrivateKey
-  * @return byte array that is the encrypted plain text
+  * @return byte array containing the encrypted plain text
   */
   public static byte[] encrypt(byte[] plainText, Key key) throws Exception {
-    Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+    Cipher cipher = Cipher.getInstance(algSpec);
     // System.out.println(cipher.getProvider().getInfo()); // TODO rather log
     cipher.init(Cipher.ENCRYPT_MODE, key);
     byte[] cipherText = cipher.doFinal(plainText);
@@ -52,10 +62,10 @@ public class AsymmetricEncryption {
   * @param cipherText byte array to be decrypted
   * @param key key object that inherits the Key interface in the java.security
   * package. The key argument will be of type PublicKey or PrivateKey
-  * @return byte array that is the decrypted cipher text
+  * @return byte array containing decrypted cipher text
   */
   public static byte[] decrypt(byte[] cipherText, Key key) throws Exception {
-    Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+    Cipher cipher = Cipher.getInstance(algSpec);
     // System.out.println(cipher.getProvider().getInfo()); // TODO rather log
     cipher.init(Cipher.DECRYPT_MODE, key);
     byte[] plainText = cipher.doFinal(cipherText);
@@ -76,7 +86,7 @@ public class AsymmetricEncryption {
   * @return key store containing keys and certificates.
   */
   public static KeyStore loadJKS(String JKSFilePath, String alias, String password) throws Exception {
-    KeyStore keyStore = KeyStore.getInstance("JKS");
+    KeyStore keyStore = KeyStore.getInstance(keyStoreType);
     keyStore.load(new FileInputStream(JKSFilePath), password.toCharArray());
     return keyStore;
   }
@@ -84,7 +94,8 @@ public class AsymmetricEncryption {
 
   /**
   * Authenticates the identity of the principle that the certificate represents.
-  * In other words, it authenticates that the private key corresponding to the
+  *
+  * It authenticates that the private key corresponding to the
   * public key in the certificate is owned by the certificate's subject.
   *
   * @param JSKFilePath path to the local host's Java Key Store (JKS)
@@ -115,10 +126,8 @@ public class AsymmetricEncryption {
     byte[] randomData = new byte[randDataLength];
     random.nextBytes(randomData);
 
-    // hashed and signed
-    MessageDigest md = MessageDigest.getInstance("SHA-256");
-    md.update(randomData);
-    byte[] digest = md.digest();
+    // hash and sign
+    byte[] digest = computeHash(randomData, hashAlg);
     byte[] signedDigest = AsymmetricEncryption.encrypt(digest, privateKey);
     System.out.println("Random data: " + randomData.length);
     System.out.println("Signed digest: " + signedDigest.length);
@@ -130,17 +139,7 @@ public class AsymmetricEncryption {
     byte[] concatMsg = baosConcat.toByteArray();
 
     // compression
-    Deflater compresser = new Deflater();
-    compresser.setInput(concatMsg);
-    ByteArrayOutputStream outputStream = new ByteArrayOutputStream(concatMsg.length);
-    compresser.finish();
-    byte[] buffer = new byte[1024];
-    while(!compresser.finished()) {
-      int count = compresser.deflate(buffer);
-      outputStream.write(buffer, 0, count);
-    }
-    outputStream.close();
-    byte[] authMsg = outputStream.toByteArray();
+    byte[] authMsg = compress(concatMsg);
     System.out.println("Original: " + concatMsg.length);
     System.out.println("Compressed: " + authMsg.length);
     return authMsg;
@@ -156,29 +155,18 @@ public class AsymmetricEncryption {
    */
   public static void verifyAuthMsg(byte[] authMsg, PublicKey publicKey) throws Exception {
     // decompression
-    Inflater decompresser = new Inflater();
-    decompresser.setInput(authMsg);
-    ByteArrayOutputStream outputStream = new ByteArrayOutputStream(authMsg.length);
-    byte[] buffer = new byte[1024];
-    while(!decompresser.finished()) {
-      int count = decompresser.inflate(buffer);
-      outputStream.write(buffer, 0, count);
-    }
-    outputStream.close();
-    byte[] concatMsg = outputStream.toByteArray();
+    byte[] concatMsg = decompress(authMsg);
     System.out.println("Original: " + concatMsg.length);
     System.out.println("Compressed: " + authMsg.length);
 
     // split
-    byte[] signedDigest = Arrays.copyOfRange(concatMsg, 0, 256); // TODO: may not be 256 bits
-    byte[] randomData = Arrays.copyOfRange(concatMsg, 256, concatMsg.length);
+    byte[] signedDigest = Arrays.copyOfRange(concatMsg, 0, msgDigestLength); // TODO: may not be 256 bits
+    byte[] randomData = Arrays.copyOfRange(concatMsg, msgDigestLength, concatMsg.length);
 
     // verify
-    byte[] digest = AsymmetricEncryption.decrypt(signedDigest, publicKey);
-    MessageDigest md = MessageDigest.getInstance("SHA-256");
-    md.update(randomData);
-    byte[] hash = md.digest();
-    if (!MessageDigest.isEqual(digest, hash)) {
+    byte[] decryptedhash = AsymmetricEncryption.decrypt(signedDigest, publicKey);
+    byte[] hash = computeHash(randomData, hashAlg);
+    if (!MessageDigest.isEqual(decryptedhash, hash)) {
       throw new AuthenticationException();
     }
   }

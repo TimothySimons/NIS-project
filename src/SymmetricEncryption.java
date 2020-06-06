@@ -11,7 +11,7 @@ import javax.crypto.spec.IvParameterSpec;
 * symmetric session key that can be used to encrypt and decrypt messages in a
 * client communication.
 */
-public class SymmetricEncryption {
+public class SymmetricEncryption extends Encryption {
   private static final int IVLength = 128/8; // IV length must be 16 bytes for AES
   private static final String encryptionSpec = "AES";
   private static final int keyLength = 256;
@@ -28,7 +28,7 @@ public class SymmetricEncryption {
   */
   public static byte[] generateIV() {
     SecureRandom random = new SecureRandom();
-    byte[] ivBytes = new byte[this.IVLength]; // IV length must be 16 bytes long for AES
+    byte[] ivBytes = new byte[IVLength]; // IV length must be 16 bytes long for AES
     random.nextBytes(ivBytes);
     IvParameterSpec ivSpec = new IvParameterSpec(ivBytes);
     return ivBytes;
@@ -41,8 +41,8 @@ public class SymmetricEncryption {
   * @return SecretKey object
   */
   public static SecretKey generateSecretKey() throws Exception {
-    KeyGenerator keyGen = KeyGenerator.getInstance(this.encryptionSpec);
-    keyGen.init(this.keyLength);
+    KeyGenerator keyGen = KeyGenerator.getInstance(encryptionSpec);
+    keyGen.init(keyLength);
     SecretKey secretKey = keyGen.generateKey();
     return secretKey;
   }
