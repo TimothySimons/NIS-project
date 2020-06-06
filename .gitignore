@@ -1,8 +1,7 @@
 # Files
 *.class
 *.jar
-*.jks
-*.cer
 
 # Folders
+bin/
 resources/
