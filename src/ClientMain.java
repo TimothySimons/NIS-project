@@ -1,40 +1,26 @@
 import java.io.IOException;
 import java.net.SocketException;
 import java.net.UnknownHostException;
+import java.nio.file.*;
 
 public class ClientMain {
 
 
   public static void main(String[] args) {
-    /*
-     * TODO: use JCommander to read commandline options.
-     * Allow user to specify whether they want to generate a public-private key
-     * pair or read in this pair from a file.
-     * TODO: this main function violates so many best practices; need to clean it up.
-     */
      try {
-      if(args.length == 1) {
-        int portNumber = Integer.parseInt(args[0]);
-        // TODO: make into commandline arguments
-        String JKSFilePath = "../resources/alice/alicekeystore.jks";
-        String alias = "alice";
-        String CARootAlias = "thecaroot";
-        String password = "alice123";
-        Client client = new Client(JKSFilePath, password, alias, CARootAlias);
+      if(args.length == 5) {
+        Client client = new Client(args[0], args[1], args[2], args[3]);
+        int portNumber = Integer.parseInt(args[4]);
         client.listenerClientActions(portNumber);
-      } else if (args.length == 2){
-        String secretMsg = "I love you Alice...";
-        String hostName = args[0];
-        int portNumber = Integer.parseInt(args[1]);
-        String JKSFilePath = "../resources/bob/bobkeystore.jks";
-        String alias = "bob";
-        String CARootAlias = "thecaroot";
-        String password = "bob123";
-        Client client = new Client(JKSFilePath, password, alias, CARootAlias);
+      } else if (args.length == 7){
+        Client client = new Client(args[0], args[1], args[2], args[3]);
+        String hostName = args[4];
+        int portNumber = Integer.parseInt(args[5]);
+        String secretMsg = readSecretMsg(args[6]);
         client.connectingClientActions(hostName, portNumber, secretMsg);
       } else {
-        System.err.println("Usage 1: java Client <port number>");
-        System.err.println("Usage 2: java Client <host name> <port number>");
+        System.out.println("Usage 1: java ClientMain <JKS-filepath> <alias> <password> <ca-root-alias> <port-number>");
+        System.out.println("Usage 2: java ClientMain <JKS-filepath> <alias> <password> <ca-root-alias> <host name> <port number> <secret-msg-filepath");
         System.exit(1);
       }
     } catch (UnknownHostException e) {
@@ -46,5 +32,11 @@ public class ClientMain {
     } catch (Exception e) {
       e.printStackTrace();
     }
+  }
+
+  private static String readSecretMsg(String msgFilepath) throws IOException {
+    String secretMsg = "";
+    secretMsg = new String(Files.readAllBytes(Paths.get(msgFilepath)));
+    return secretMsg;
   }
 }

@@ -16,7 +16,7 @@ public class AsymmetricEncryption {
   * Generates a RSA public and private key pair.
   *
   * This is currently only used for debuging purposes as the public and private
-  * keys are kept in java key stores.
+  * keys are kept in the clients' java key stores.
   *
   * @return KeyPair object which is a simple holder for the PublicKey and
   * PrivateKey objects.

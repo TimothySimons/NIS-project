@@ -9,6 +9,9 @@ import javax.crypto.spec.*;
 import javax.net.ServerSocketFactory;
 import javax.net.ssl.*;
 
+// TODO: make key message sizes, algorithms etc constant.
+// TODO: add compression and hashing to the secret message communication.
+// TODO: add testing and debuging
 
 public class Client {
   private String alias;
@@ -19,7 +22,7 @@ public class Client {
   private X509Certificate cert;
   private X509Certificate CARootCert;
 
-  public Client(String JKSFilePath, String password, String alias, String CARootAlias) throws Exception {
+  public Client(String JKSFilePath, String alias, String password, String CARootAlias) throws Exception {
     this.alias = alias;
     this.password = password;
     this.keyStore = AsymmetricEncryption.loadJKS(JKSFilePath, alias, password);
