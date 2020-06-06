@@ -9,7 +9,7 @@ import java.util.zip.*;
 * functionality implemented in this class.
 */
 public class Encryption {
-
+  private static final ClientLogger logger = new ClientLogger();
 
   /**
   * Compresses a byte array.
@@ -30,6 +30,7 @@ public class Encryption {
     }
     outputStream.close();
     byte[] compressedMsg = outputStream.toByteArray();
+    logger.logCompress(msg.length, compressedMsg.length);
     return compressedMsg;
   }
 
@@ -51,6 +52,7 @@ public class Encryption {
     }
     outputStream.close();
     byte[] msg = outputStream.toByteArray();
+    logger.logDecompress(compressedMsg.length, msg.length);
     return msg;
   }
 

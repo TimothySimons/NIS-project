@@ -15,10 +15,11 @@ import javax.net.ssl.*;
 // TODO: add testing and debuging
 
 public class Client {
+  private final ClientLogger logger = new ClientLogger();
   private final int randomDataLength = 2048;
   private final String encryptionSpec = "AES";
-  private static final String hashAlg = "SHA-256";
-  private final int msgDigestLength = 32;
+  private final String hashAlg = "SHA-256";
+  private final int msgDigestLength = 32; // 32 bytes or 256 bits
   private String alias;
   private String password;
   private KeyStore keyStore;
@@ -45,6 +46,7 @@ public class Client {
   public void listeningClientActions(int portNumber) throws Exception {
     // connection
     Socket socket = listen(portNumber);
+    logger.logConnection(socket);
 
     // certificate verification
     sendCert(socket);
@@ -55,6 +57,7 @@ public class Client {
     byte[] authMsgOut = AsymmetricEncryption.createAuthMsg(this.randomDataLength, this.privateKey);
     sendBytes(socket, authMsgOut);
     byte[] authMsgIn = receiveBytes(socket);
+    logger.logMsg("Received authentication message from connected client\n");
     PublicKey remotePublicKey = remoteCert.getPublicKey();
     AsymmetricEncryption.verifyAuthMsg(authMsgIn, remotePublicKey);
 
@@ -66,17 +69,18 @@ public class Client {
 
     // encrypted secret message and message digest
     byte[] ivBytes = receiveBytes(socket);
-    byte[] encryptedBytes = receiveBytes(socket);
+    logger.logMsg("Received one-time initalisation vector from connected client\n");
+    byte[] compressedBytes = receiveBytes(socket);
+    byte[] encryptedBytes = SymmetricEncryption.decompress(compressedBytes);
+    logger.logMsg("Received confidential message from connected client\n");
     byte[] concatMsg = SymmetricEncryption.decrypt(encryptedBytes, secretKey, ivBytes);
     byte[] decryptedHash = Arrays.copyOfRange(concatMsg, 0, this.msgDigestLength);
     byte[] secretMsgBytes = Arrays.copyOfRange(concatMsg, this.msgDigestLength, concatMsg.length);
-    // String secretMsg = new String(secretMsgBytes);
-    // System.out.println(secretMsg); // TODO
+    String secretMsg = new String(secretMsgBytes);
+    logger.logMsg("Decrypted secret message:\n" + secretMsg);
 
     // secret message integrity
     byte[] hash = SymmetricEncryption.computeHash(secretMsgBytes, hashAlg);
-    System.out.println("hash length " + hash.length);
-    System.out.println("decrypted hash length " + decryptedHash.length);
     if (!MessageDigest.isEqual(decryptedHash, hash)) {
       throw new AuthenticationException();
     }
@@ -86,6 +90,7 @@ public class Client {
   public void connectingClientActions(String hostName, int portNumber, String secretMsg) throws Exception {
     // connection
     Socket socket = connect(hostName, portNumber);
+    logger.logConnection(socket);
 
     // certificate verification
     X509Certificate remoteCert = receiveCert(socket);
@@ -94,6 +99,7 @@ public class Client {
 
     // client authentication
     byte[] authMsgIn = receiveBytes(socket);
+    logger.logMsg("Received authentication message from connected client\n");
     PublicKey remotePublicKey = remoteCert.getPublicKey();
     AsymmetricEncryption.verifyAuthMsg(authMsgIn, remotePublicKey);
     byte[] authMsgOut = AsymmetricEncryption.createAuthMsg(this.randomDataLength, this.privateKey);
@@ -101,6 +107,7 @@ public class Client {
 
     // shared-key session
     byte[] encryptedSecretKey = receiveBytes(socket);
+    logger.logMsg("Received encrypted session key from connected client\n");
     byte[] encodedSecretKey = AsymmetricEncryption.decrypt(encryptedSecretKey, this.privateKey);
     byte[] ivBytes = SymmetricEncryption.generateIV();
     SecretKeySpec secretKey = new SecretKeySpec(encodedSecretKey, this.encryptionSpec);
@@ -108,17 +115,15 @@ public class Client {
     // encrypted secret and message digest
     byte[] secretMsgBytes = secretMsg.getBytes();
     byte[] hash = SymmetricEncryption.computeHash(secretMsgBytes, this.hashAlg);
-    System.out.println("hash length " + hash.length);
     ByteArrayOutputStream baosConcat = new ByteArrayOutputStream();
     baosConcat.write(hash);
     baosConcat.write(secretMsgBytes);
     byte[] concatMsg = baosConcat.toByteArray();
-    // System.out.println("debug " + concatMsg.length);
 
     byte[] encryptedBytes = SymmetricEncryption.encrypt(concatMsg, secretKey, ivBytes);
-    // System.out.println("debug " + encryptedBytes.length);
+    byte[] compressedBytes = SymmetricEncryption.compress(encryptedBytes);
     sendBytes(socket, ivBytes);
-    sendBytes(socket, encryptedBytes);
+    sendBytes(socket, compressedBytes);
   }
 
 
@@ -172,6 +177,7 @@ public class Client {
   throws SocketException, IOException, ClassNotFoundException {
       ObjectInputStream inStream = new ObjectInputStream(socket.getInputStream());
       X509Certificate cert = (X509Certificate) inStream.readObject();
+      logger.logRemoteCert(cert);
       return cert;
   }
 

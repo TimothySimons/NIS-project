@@ -15,6 +15,7 @@ import javax.security.sasl.AuthenticationException;
 * of PGP.
 */
 public class AsymmetricEncryption extends Encryption {
+  private static final ClientLogger logger = new ClientLogger();
   private static final String encryptionSpec = "RSA";
   private static final int keyLength = 2048;
   private static final String algSpec = "RSA/ECB/PKCS1Padding";
@@ -50,9 +51,9 @@ public class AsymmetricEncryption extends Encryption {
   */
   public static byte[] encrypt(byte[] plainText, Key key) throws Exception {
     Cipher cipher = Cipher.getInstance(algSpec);
-    // System.out.println(cipher.getProvider().getInfo()); // TODO rather log
     cipher.init(Cipher.ENCRYPT_MODE, key);
     byte[] cipherText = cipher.doFinal(plainText);
+    logger.logEncryption(algSpec, cipher, cipherText);
     return cipherText;
   }
 
@@ -129,10 +130,8 @@ public class AsymmetricEncryption extends Encryption {
 
     // hash and sign
     byte[] digest = computeHash(randomData, hashAlg);
-    System.out.println("debug Asym " + digest.length);
     byte[] signedDigest = AsymmetricEncryption.encrypt(digest, privateKey);
-    System.out.println("Random data: " + randomData.length);
-    System.out.println("Signed digest: " + signedDigest.length);
+
 
     // concatenate signed digest with original message
     ByteArrayOutputStream baosConcat = new ByteArrayOutputStream();
@@ -142,8 +141,6 @@ public class AsymmetricEncryption extends Encryption {
 
     // compression
     byte[] authMsg = compress(concatMsg);
-    System.out.println("Original: " + concatMsg.length);
-    System.out.println("Compressed: " + authMsg.length);
     return authMsg;
   }
 
@@ -158,8 +155,6 @@ public class AsymmetricEncryption extends Encryption {
   public static void verifyAuthMsg(byte[] authMsg, PublicKey publicKey) throws Exception {
     // decompression
     byte[] concatMsg = decompress(authMsg);
-    System.out.println("Original: " + concatMsg.length);
-    System.out.println("Compressed: " + authMsg.length);
 
     // split
     byte[] signedDigest = Arrays.copyOfRange(concatMsg, 0, signedDigestLength);

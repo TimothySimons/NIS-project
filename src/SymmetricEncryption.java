@@ -12,6 +12,7 @@ import javax.crypto.spec.IvParameterSpec;
 * client communication.
 */
 public class SymmetricEncryption extends Encryption {
+  private static final ClientLogger logger = new ClientLogger();
   private static final int IVLength = 128/8; // IV length must be 16 bytes for AES
   private static final String encryptionSpec = "AES";
   private static final int keyLength = 256;
