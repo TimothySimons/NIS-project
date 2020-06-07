@@ -10,18 +10,19 @@ If you wish to create your own java key stores, you will have to follow the tuto
  * a java key store for the connecting client
  * each key store needs to contain the client's signed certificate, their private key and the certificate of a trusted Certification Authority.
  * a secret .txt message to be sent from the connecting client to the listening client
+
  Sample java key stores and a secret message have been provided for testing.
 
 ## Running the application
 A Makefile is added for convenient compilation. If you do not have the make utility, you can simply compile and run the program from src.
 
 ### Compilation
-To compile the Client application, simply execute
+To compile the Client application, simply
 ```
 make
 ```
 
-To remove class files from bin, execute
+To remove class files from bin,
 ```
 make clean
 ```

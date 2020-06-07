@@ -20,7 +20,7 @@ public class ClientMain {
         client.connectingClientActions(hostName, portNumber, secretMsg);
       } else {
         System.out.println("Usage 1: java ClientMain <JKS-filepath> <alias> <password> <ca-root-alias> <port-number>");
-        System.out.println("Usage 2: java ClientMain <JKS-filepath> <alias> <password> <ca-root-alias> <host name> <port number> <secret-msg-filepath");
+        System.out.println("Usage 2: java ClientMain <JKS-filepath> <alias> <password> <ca-root-alias> <host name> <port number> <secret-msg-filepath>");
         System.exit(1);
       }
     } catch (UnknownHostException e) {

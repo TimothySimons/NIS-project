@@ -10,8 +10,6 @@ import javax.net.ServerSocketFactory;
 import javax.security.sasl.AuthenticationException;
 import javax.net.ssl.*;
 
-// TODO: make key message sizes, algorithms etc constant.
-// TODO: add compression and hashing to the secret message communication.
 // TODO: add testing and debuging
 
 public class Client {
@@ -38,10 +36,11 @@ public class Client {
     this.CARootCert = (X509Certificate) keyStore.getCertificate(CARootAlias);
   }
 
- /**
+  /**
   * Encapsulates the communication between two clients from the listening client's
   * perspective.
   *
+  * @param portNumber the port on which to listen for a connection
   */
   public void listeningClientActions(int portNumber) throws Exception {
     // connection
@@ -87,6 +86,14 @@ public class Client {
   }
 
 
+  /**
+  * Encapsulates the communication between two clients from the connecting client's
+  * perspective.
+  *
+  * @param hostName the host name of the remote client
+  * @param portNumber the renote port to connect to
+  * @param secretMsg the secret message to send to the listening client
+  */
   public void connectingClientActions(String hostName, int portNumber, String secretMsg) throws Exception {
     // connection
     Socket socket = connect(hostName, portNumber);
@@ -128,74 +135,84 @@ public class Client {
 
 
   /**
-   * Listens for a connection and returns the associated socket.
-   *
-   * @param portNumber local port number on which to listen for a connection
-   * @return socket associated with the connected client
-   */
+  * Listens for a connection and returns the associated socket.
+  *
+  * @param portNumber local port number on which to listen for a connection
+  * @return socket associated with the connected client
+  */
   private Socket listen(int portNumber) throws IOException {
-      ServerSocket serverSocket = new ServerSocket(portNumber);
-      Socket socket = serverSocket.accept();
-      return socket;
+    ServerSocket serverSocket = new ServerSocket(portNumber);
+    Socket socket = serverSocket.accept();
+    return socket;
   }
 
 
   /**
-   * Attempts to connect to the listening client.
-   *
-   * @param hostName the name of the remote host
-   * @param portNumber the port number on which the remote host is listening
-   * @return socket associated with the connected client
-   */
+  * Attempts to connect to the listening client.
+  *
+  * @param hostName the name of the remote host
+  * @param portNumber the port number on which the remote host is listening
+  * @return socket associated with the connected client
+  */
   private Socket connect(String hostName, int portNumber)
   throws UnknownHostException, IOException {
-      Socket socket = new Socket(hostName, portNumber);
-      return socket;
-  }
-
-
-/**
- * Sends a Certificate object across a network to the remote host.
- *
- * @param socket endpoint for the communication to the remote host
- * @param cert the signed certificate of the local host
- */
-  private void sendCert(Socket socket)
-  throws SocketException, IOException {
-      ObjectOutputStream outputStream = new ObjectOutputStream(socket.getOutputStream());
-      outputStream.writeObject(this.cert);
+    Socket socket = new Socket(hostName, portNumber);
+    return socket;
   }
 
 
   /**
-   * Receive a Certificate object from the remote host.
-   *
-   * @param socket endpoint for the communication to the remote host
-   * @return signed certificate of the remote host
-   */
+  * Sends a Certificate object across a network to the remote host.
+  *
+  * @param socket endpoint for the communication to the remote host
+  * @param cert the signed certificate of the local host
+  */
+  private void sendCert(Socket socket)
+  throws SocketException, IOException {
+    ObjectOutputStream outputStream = new ObjectOutputStream(socket.getOutputStream());
+    outputStream.writeObject(this.cert);
+  }
+
+
+  /**
+  * Receive a Certificate object from the remote host.
+  *
+  * @param socket endpoint for the communication to the remote host
+  * @return signed certificate of the remote host
+  */
   private X509Certificate receiveCert(Socket socket)
   throws SocketException, IOException, ClassNotFoundException {
-      ObjectInputStream inStream = new ObjectInputStream(socket.getInputStream());
-      X509Certificate cert = (X509Certificate) inStream.readObject();
-      logger.logRemoteCert(cert);
-      return cert;
+    ObjectInputStream inStream = new ObjectInputStream(socket.getInputStream());
+    X509Certificate cert = (X509Certificate) inStream.readObject();
+    logger.logRemoteCert(cert);
+    return cert;
   }
 
 
-  private void sendBytes(Socket socket, byte[] authMsg)
+  /**
+  * Send bytes to the remote host.
+  *
+  * @param socket endpoint for the communication to the remote host
+  */
+  private void sendBytes(Socket socket, byte[] msg)
   throws SocketException, IOException {
     DataOutputStream outStream = new DataOutputStream(socket.getOutputStream());
-    outStream.writeInt(authMsg.length);
-    outStream.write(authMsg);
+    outStream.writeInt(msg.length);
+    outStream.write(msg);
   }
 
-
+  /**
+  * Receive bytes from the remote host.
+  *
+  * @param socket endpoint for the communication to the remote host
+  * @return byte array from the remote host
+  */
   private byte[] receiveBytes(Socket socket)
   throws SocketException, IOException, ClassNotFoundException {
     DataInputStream inStream = new DataInputStream(socket.getInputStream());
     int length = inStream.readInt();
-    byte[] authMsg = new byte[length];
-    inStream.readFully(authMsg, 0, authMsg.length);
-    return authMsg;
+    byte[] msg = new byte[length];
+    inStream.readFully(msg, 0, msg.length);
+    return msg;
   }
 }

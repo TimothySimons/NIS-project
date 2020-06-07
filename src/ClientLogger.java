@@ -38,7 +38,7 @@ public class ClientLogger {
 
   public void logEncryption(String algSpec, Cipher cipher, byte[] cipherText) {
     String encryptionProvider = cipher.getProvider().getInfo() + '\n';
-    LOGGER.log(Level.INFO, "Algorithm specification: " + algSpec + "\n" + encryptionProvider + "Cipher text: \n" + new String(cipherText));
+    LOGGER.log(Level.INFO, "Algorithm specification: " + algSpec + "\n" + encryptionProvider + "Cipher text: \n" + new String(cipherText) + "\n");
 
   }
 }

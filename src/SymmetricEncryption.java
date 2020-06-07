@@ -61,6 +61,7 @@ public class SymmetricEncryption extends Encryption {
     Cipher cipher = Cipher.getInstance(algSpec);
     cipher.init(Cipher.ENCRYPT_MODE, key, ivSpec);
     byte[] cipherText = cipher.doFinal(plainText);
+    logger.logEncryption(algSpec, cipher, cipherText);
     return cipherText;
   }
 

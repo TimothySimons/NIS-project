@@ -23,7 +23,7 @@ public class AsymmetricEncryption extends Encryption {
   private static final String hashAlg = "SHA-256";
   private static final int signedDigestLength = 256;
 
-
+// TODO further logging
 
   /**
   * Generates a RSA public and private key pair.
@@ -68,7 +68,6 @@ public class AsymmetricEncryption extends Encryption {
   */
   public static byte[] decrypt(byte[] cipherText, Key key) throws Exception {
     Cipher cipher = Cipher.getInstance(algSpec);
-    // System.out.println(cipher.getProvider().getInfo()); // TODO rather log
     cipher.init(Cipher.DECRYPT_MODE, key);
     byte[] plainText = cipher.doFinal(cipherText);
     return plainText;
