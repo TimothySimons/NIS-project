@@ -15,7 +15,7 @@ public class SymmetricEncryption extends Encryption {
   private static final ClientLogger logger = new ClientLogger();
   private static final int IVLength = 128/8; // IV length must be 16 bytes for AES
   private static final String encryptionSpec = "AES";
-  private static final int keyLength = 256;
+  private static final int keyLength = 128;
   private static final String algSpec = "AES/CBC/PKCS5Padding";
 
 
