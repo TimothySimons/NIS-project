@@ -83,6 +83,10 @@ public class Client {
     if (!MessageDigest.isEqual(decryptedHash, hash)) {
       throw new AuthenticationException();
     }
+
+    // finish
+    socket.close();
+
   }
 
 
@@ -131,6 +135,9 @@ public class Client {
     byte[] compressedBytes = SymmetricEncryption.compress(encryptedBytes);
     sendBytes(socket, ivBytes);
     sendBytes(socket, compressedBytes);
+
+    // finish
+    socket.close();
   }
 
 
